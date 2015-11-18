@@ -45,6 +45,7 @@
     <Compile Include="Sockets\GameClient.cs" />
     <Compile Include="Sockets\GameServer.cs" />
     <Compile Include="Sockets\Server.cs" />
+    <Compile Include="Utility\Crypto.cs" />
     <Compile Include="Utility\HuffmanCompressor.cs" />
     <Compile Include="Utility\SocketUtility.cs" />
     <Compile Include="Utility\StringCompressor.cs" />

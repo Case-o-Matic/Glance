@@ -13,7 +13,6 @@ namespace Caseomatic.Net
     public static class PacketConverter
     {
         private static Serializer serializer;
-
         public static void Initialize(Assembly packetDefinitionAssembly)
         {
             var packetTypes = packetDefinitionAssembly.GetTypes()

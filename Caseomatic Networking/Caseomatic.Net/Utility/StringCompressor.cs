@@ -16,13 +16,14 @@ namespace Caseomatic.Net.Utility
     // because "a/2" > "aa" and "a/3" = "aaa".
     public static class StringCompressor
     {
-        private static string[] alphabet;
-        private static string pattern;
+        private const char compressSignChar = '/';
+        private static string pattern, antiPattern;
 
         static StringCompressor()
         {
-            alphabet = Enumerable.Range(97, 26).Select(i => (char)i + "+").ToArray();
+            var alphabet = Enumerable.Range(97, 26).Select(i => (char)i + "+").ToArray();
             pattern = "(" + string.Join("|", alphabet) + ")";
+            antiPattern = @"([a-zA-Z])\" + compressSignChar + "([0-9]+$)";
         }
 
         public static string Compress(string originalString)
@@ -32,19 +33,27 @@ namespace Caseomatic.Net.Utility
                 .Cast<Match>().Select(m => new
                 {
                     Char = m.Groups[1].Value[0],
-                    Count = m.Groups[1].Value.Length
+                    Count = m.Groups[1].Value
                 })
                 .Aggregate(string.Empty, (result, nextGroup) =>
-                   result.ToString()
-                   + nextGroup.Char
-                   + (nextGroup.Count > 1 ? nextGroup.Count.ToString() : string.Empty));
+                   result.ToString() + nextGroup.Char);
 
             return compressed;
         }
 
         public static string Decompress(string compressedString)
         {
-            throw new NotImplementedException();
+            var decompressed =
+                Regex.Matches(compressedString, antiPattern)
+                .Cast<Match>().Select(m => new
+                {
+                    Char = m.Groups[1].Value[0],
+                    Count = int.Parse(m.Groups[1].Value)
+                })
+                .Aggregate(string.Empty, (result, nextGroup) =>
+                result.ToString() + Enumerable.Repeat(nextGroup.Char, nextGroup.Count));
+
+            return decompressed;
         }
     }
 }
