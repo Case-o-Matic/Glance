@@ -14,7 +14,6 @@ namespace Caseomatic.Db.AWS
         public DynamoDBClient()
         {
             client = new AmazonDynamoDBClient(AWSServiceCredentials.Credentials);
-            
         }
     }
 }
