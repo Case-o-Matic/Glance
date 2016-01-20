@@ -33,10 +33,19 @@ namespace Caseomatic.Net
             get { return (IPEndPoint)server.LocalEndpoint; }
         }
 
+        private ICommunicationModule communicationModule;
+        public ICommunicationModule CommunicationModule
+        {
+            get { return communicationModule; }
+            set { communicationModule = value; }
+        }
+
         public Server(int port)
         {
             server = new TcpListener(new IPEndPoint(IPAddress.Any, port));
             clientConnections = new Dictionary<int, ClientConnection>();
+
+            communicationModule = new DefaultCommunicationModule();
         }
         ~Server()
         {

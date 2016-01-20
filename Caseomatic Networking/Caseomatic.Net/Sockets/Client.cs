@@ -24,6 +24,13 @@ namespace Caseomatic.Net
         private object packetReceivingLock;
         private int port;
 
+        private ICommunicationModule communicationModule;
+        public ICommunicationModule CommunicationModule
+        {
+            get { return communicationModule; }
+            set { communicationModule = value; }
+        }
+
         private bool isConnected;
         public bool IsConnected
         {
@@ -34,6 +41,8 @@ namespace Caseomatic.Net
         {
             this.port = port;
             packetReceivingLock = new object();
+
+            communicationModule = new DefaultCommunicationModule();
         }
         ~Client()
         {
@@ -119,7 +128,7 @@ namespace Caseomatic.Net
             {
                 if (isConnected)
                 {
-                    var packetBytes = PacketConverter.ToBytes(packet);
+                    var packetBytes = communicationModule.ConvertSend<TClientPacket>(packet);
                     var sentBytes = socket.Send(packetBytes);
 
                     if (sentBytes == 0)
@@ -218,7 +227,7 @@ namespace Caseomatic.Net
                         var packetBuffer = new byte[receivedBytes];
                         Buffer.BlockCopy(packetReceivingBuffer, 0, packetBuffer, 0, receivedBytes);
 
-                        return PacketConverter.ToPacket<TServerPacket>(packetBuffer);
+                        return communicationModule.ConvertReceive<TServerPacket>(packetBuffer);
                     }
                 }
             }
