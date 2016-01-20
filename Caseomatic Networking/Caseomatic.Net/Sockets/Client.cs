@@ -109,12 +109,11 @@ namespace Caseomatic.Net
         {
             try
             {
-                socket.Shutdown(SocketShutdown.Receive);
-
                 isConnected = false;
                 receivePacketsThread.Join();
 
-                socket.Close();
+                socket.Close(); // Or use socket.Disconnect(true) instead of close/null?
+                socket = null;
             }
             catch (SocketException ex)
             {
@@ -146,6 +145,7 @@ namespace Caseomatic.Net
             }
         }
 
+        #region Requests
         public TServerAnswer SendRequest<TClientRequest, TServerAnswer>(TClientRequest requestPacket)
             where TClientRequest : TClientPacket, IPacketRequestable where TServerAnswer : TServerPacket
         {
@@ -154,7 +154,8 @@ namespace Caseomatic.Net
                 SendPacket(requestPacket);
                 var answerPacket = ReceivePacket();
 
-                return answerPacket != null ? (TServerAnswer)answerPacket : default(TServerAnswer);
+                return answerPacket != null ?
+                    (TServerAnswer)answerPacket : default(TServerAnswer);
             }
             else
                 return default(TServerAnswer);
@@ -189,11 +190,13 @@ namespace Caseomatic.Net
             answerPacket = SendRequestAsync<TClientRequest, TServerAnswer>(requestPacket);
             return answerPacket.Equals(default(TServerAnswer));
         }
+        #endregion
 
         private void ReceivePacketsLoop()
         {
             while (isConnected)
             {
+                Console.WriteLine("Receiving message in bg thread loop"); // !
                 // Surround with available bytes != 0 if statement?
                 var serverPacket = ReceivePacket();
 
@@ -201,10 +204,13 @@ namespace Caseomatic.Net
                 if (onReceivePacket != null && serverPacket != null)
                 {
                     onReceivePacket(serverPacket);
+                    Console.WriteLine("Received packet " + serverPacket.GetType().Name); // !
                 }
                 else
-                    break;
+                    Console.WriteLine("The packet receiving malfunctioned or no receive event has been subscribed.");
             }
+
+            Console.WriteLine("Socket receive loop exited");
         }
 
         private TServerPacket ReceivePacket()
@@ -227,7 +233,12 @@ namespace Caseomatic.Net
                         var packetBuffer = new byte[receivedBytes];
                         Buffer.BlockCopy(packetReceivingBuffer, 0, packetBuffer, 0, receivedBytes);
 
+<<<<<<< HEAD
                         return communicationModule.ConvertReceive<TServerPacket>(packetBuffer);
+=======
+                        Console.WriteLine("Client.ReceivePacket() works"); // !
+                        return PacketConverter.ToPacket<TServerPacket>(packetBuffer);
+>>>>>>> 062c51aa83f06ce148b6dbd4a88fbb5dde86d6eb
                     }
                 }
             }
