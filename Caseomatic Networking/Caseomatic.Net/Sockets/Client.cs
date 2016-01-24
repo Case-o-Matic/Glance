@@ -233,12 +233,7 @@ namespace Caseomatic.Net
                         var packetBuffer = new byte[receivedBytes];
                         Buffer.BlockCopy(packetReceivingBuffer, 0, packetBuffer, 0, receivedBytes);
 
-<<<<<<< HEAD
                         return communicationModule.ConvertReceive<TServerPacket>(packetBuffer);
-=======
-                        Console.WriteLine("Client.ReceivePacket() works"); // !
-                        return PacketConverter.ToPacket<TServerPacket>(packetBuffer);
->>>>>>> 062c51aa83f06ce148b6dbd4a88fbb5dde86d6eb
                     }
                 }
             }

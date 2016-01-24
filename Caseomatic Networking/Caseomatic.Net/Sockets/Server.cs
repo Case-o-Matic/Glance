@@ -19,8 +19,8 @@ namespace Caseomatic.Net
         private TcpListener server;
         private Thread acceptSocketsThread;
         private int connectionIdGenerationNumber = 1;
-
-        protected readonly Dictionary<int, ClientConnection> clientConnections;
+        
+        protected readonly Dictionary<int, ClientConnection> clientConnections; // ConcurrentDictionary is not available in .NET 3.5
 
         private bool isHosting;
         public bool IsHosting

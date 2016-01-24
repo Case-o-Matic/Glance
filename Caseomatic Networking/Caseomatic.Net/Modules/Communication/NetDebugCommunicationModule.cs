@@ -62,7 +62,7 @@ namespace Caseomatic.Net
 
         private void Log(string text)
         {
-
+            Console.WriteLine(text);
         }
     }
 
