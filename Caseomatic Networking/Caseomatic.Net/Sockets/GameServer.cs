@@ -22,16 +22,19 @@ namespace Caseomatic.Net
             udpClient.JoinMulticastGroup(multicastEndPoint.Address);
             // udpClient.Ttl = 42; // Default = 32, higher values need more bandwidth
         }
-        ~GameServer()
-        {
-            udpClient.DropMulticastGroup(multicastEndPoint.Address); // Is this really needed?
-            udpClient.Close();
-        }
 
         public void SendMulticastPacket(TServerPacket packet)
         {
             var packetBytes = PacketConverter.ToBytes(packet);
             udpClient.Send(packetBytes, packetBytes.Length, multicastEndPoint);
+        }
+
+        protected override void OnClose()
+        {
+            udpClient.DropMulticastGroup(multicastEndPoint.Address); // Is this really needed?
+            udpClient.Close();
+
+            base.OnClose();
         }
     }
 }

@@ -37,6 +37,11 @@ namespace Caseomatic.Net
             get { return isConnected; }
         }
 
+        public bool IsReceiveThreadRunning
+        {
+            get { return receivePacketsThread.ThreadState == ThreadState.Running; }
+        }
+
         public Client(int port)
         {
             this.port = port;
@@ -113,7 +118,7 @@ namespace Caseomatic.Net
                 receivePacketsThread.Join();
 
                 socket.Close(); // Or use socket.Disconnect(true) instead of close/null?
-                socket = null;
+                Console.WriteLine("Disconnected from the server");
             }
             catch (SocketException ex)
             {
@@ -196,11 +201,9 @@ namespace Caseomatic.Net
         {
             while (isConnected)
             {
-                Console.WriteLine("Receiving message in bg thread loop"); // !
-                // Surround with available bytes != 0 if statement?
                 var serverPacket = ReceivePacket();
 
-                var onReceivePacket = OnReceivePacket;
+                var onReceivePacket = OnReceivePacket; // Is this needed in the client?
                 if (onReceivePacket != null && serverPacket != null)
                 {
                     onReceivePacket(serverPacket);
@@ -209,8 +212,6 @@ namespace Caseomatic.Net
                 else
                     Console.WriteLine("The packet receiving malfunctioned or no receive event has been subscribed.");
             }
-
-            Console.WriteLine("Socket receive loop exited");
         }
 
         private TServerPacket ReceivePacket()
@@ -251,8 +252,8 @@ namespace Caseomatic.Net
         {
             if (isConnected)
             {
-                var isConnected = socket.IsConnectionValid();
-                if (!isConnected)
+                var isReallyConnected = socket.IsConnectionValid();
+                if (!isReallyConnected)
                 {
                     Console.WriteLine("The server shows no heartbeat" + (repairIfBroken ?
                         ", trying to repair connection" : ", disconnecting"));
@@ -265,7 +266,7 @@ namespace Caseomatic.Net
                         RepairConnection();
                 }
 
-                return isConnected;
+                return isReallyConnected;
             }
             else
                 return false;
@@ -289,7 +290,7 @@ namespace Caseomatic.Net
             }
             else
             {
-                Console.WriteLine("IP not pingable. result: " + pReply.Status + ", dropping off");
+                Console.WriteLine("IP not pingable. Result: " + pReply.Status + ", dropping off");
             }
         }
     }
