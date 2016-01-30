@@ -215,10 +215,9 @@ namespace Caseomatic.Net
                     if (serverPacket != null)
                     {
                         receivePacketsSynchronizationStack.Push(serverPacket);
-                        Console.WriteLine("Received packet " + serverPacket.GetType().Name); // !
                     }
                     else
-                        Console.WriteLine("The packet receiving malfunctioned or no receive event has been subscribed.");
+                        Console.WriteLine("The received packet is corrupt.");
                 }
             }
             catch (Exception ex)

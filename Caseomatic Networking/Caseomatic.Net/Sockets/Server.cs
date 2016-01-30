@@ -108,8 +108,6 @@ namespace Caseomatic.Net
                         Console.WriteLine("Performing heartbeat: 0 bytes sent");
                         HeartbeatConnection(clientConnection);
                     }
-                    else
-                        Console.WriteLine("Sent packet " + packet.GetType().Name);
                 }
                 catch (SocketException ex)
                 {

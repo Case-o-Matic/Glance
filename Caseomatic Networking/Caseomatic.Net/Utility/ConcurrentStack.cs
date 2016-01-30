@@ -48,10 +48,10 @@ namespace Caseomatic.Net.Utility
         {
             lock (lockObj)
             {
-                var items = stack.Select(i => i);
+                var items = stack.ToArray();
                 stack.Clear();
 
-                return items.ToArray();
+                return items;
             }
         }
 
