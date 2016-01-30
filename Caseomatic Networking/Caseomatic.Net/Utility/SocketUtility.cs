@@ -17,6 +17,7 @@ namespace Caseomatic.Net
 
             return !(pollRead && pollError && availableZero && initializedDisonnected);
         }
+
         public static void ConfigureInitialSocket(this Socket sock)
         {
             sock.LingerState = new LingerOption(true, 3);

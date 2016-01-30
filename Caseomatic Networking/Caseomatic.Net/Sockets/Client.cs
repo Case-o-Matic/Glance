@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Caseomatic.Net.Utility;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Linq;
 
 namespace Caseomatic.Net
 {
@@ -24,6 +26,8 @@ namespace Caseomatic.Net
         private object packetReceivingLock;
         private int port;
 
+        private readonly ConcurrentStack<TServerPacket> receivePacketsSynchronizationStack;
+
         private ICommunicationModule communicationModule;
         public ICommunicationModule CommunicationModule
         {
@@ -37,16 +41,12 @@ namespace Caseomatic.Net
             get { return isConnected; }
         }
 
-        public bool IsReceiveThreadRunning
-        {
-            get { return receivePacketsThread.ThreadState == ThreadState.Running; }
-        }
-
         public Client(int port)
         {
             this.port = port;
             packetReceivingLock = new object();
 
+            receivePacketsSynchronizationStack = new ConcurrentStack<TServerPacket>();
             communicationModule = new DefaultCommunicationModule();
         }
         ~Client()
@@ -84,6 +84,13 @@ namespace Caseomatic.Net
             {
                 OnDisconnect();
             }
+        }
+
+        public void FireEvents()
+        {
+            var events = receivePacketsSynchronizationStack.PopAll();
+            for (int i = 0; i < events.Length; i++)
+                OnReceivePacket(events[i]);
         }
 
         protected virtual void OnConnect(IPEndPoint serverEndPoint)
@@ -199,18 +206,25 @@ namespace Caseomatic.Net
 
         private void ReceivePacketsLoop()
         {
-            while (isConnected)
+            try
             {
-                var serverPacket = ReceivePacket();
-
-                var onReceivePacket = OnReceivePacket; // Is this needed in the client?
-                if (onReceivePacket != null && serverPacket != null)
+                while (isConnected)
                 {
-                    onReceivePacket(serverPacket);
-                    Console.WriteLine("Received packet " + serverPacket.GetType().Name); // !
+                    var serverPacket = ReceivePacket();
+
+                    if (serverPacket != null)
+                    {
+                        receivePacketsSynchronizationStack.Push(serverPacket);
+                        Console.WriteLine("Received packet " + serverPacket.GetType().Name); // !
+                    }
+                    else
+                        Console.WriteLine("The packet receiving malfunctioned or no receive event has been subscribed.");
                 }
-                else
-                    Console.WriteLine("The packet receiving malfunctioned or no receive event has been subscribed.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Receiving in the client loop resulted in an exception: " + ex.Message);
+                
             }
         }
 
