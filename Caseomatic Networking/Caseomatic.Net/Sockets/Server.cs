@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Linq;
 
 namespace Caseomatic.Net
 {
@@ -67,17 +68,43 @@ namespace Caseomatic.Net
             }
         }
 
-        public void DisconnectClient(int connectionId)
+        public void HeartbeatConnection(ClientConnection clientConnection) // Put async!
         {
-            var clientConnection = clientConnections[connectionId];
+            var isClientConnected = clientConnection.socket.IsConnectionValid();
+            if (!isClientConnected)
+            {
+                Console.WriteLine("The client " + clientConnection.connectionId + " shows no heartbeat: Dropping off");
+                KickClientConnection(clientConnection.connectionId);
+            }
+            // Else: Do something if connected properly?
+        }
+        public void HeartbeatConnections()
+        {
+            var clientConnectionsCopy = new ClientConnection[clientConnections.Count];
+            clientConnections.Values.CopyTo(clientConnectionsCopy, 0);
 
-            clientConnection.terminate = true;
-            clientConnection.receivePacketsThread.Join();
+            for (int i = 0; i < clientConnectionsCopy.Length; i++)
+                HeartbeatConnection(clientConnectionsCopy[i]);
+        }
 
-            clientConnection.socket.Close();
-            clientConnections.Remove(connectionId);
+        public bool DisconnectClient(int connectionId)
+        {
+            if (clientConnections.ContainsKey(connectionId))
+            {
+                var clientConnection = clientConnections[connectionId];
+                clientConnection.terminate = true;
 
-            Console.WriteLine("Disconnected the client " + connectionId);
+                clientConnection.socket.Close();
+                clientConnections.Remove(connectionId);
+
+                Console.WriteLine("Disconnected the client " + connectionId);
+                return true;
+            }
+            else return false;
+        }
+        public void DisconnectClient(ClientConnection clientConnection)
+        {
+            DisconnectClient(clientConnection.connectionId);
         }
 
         public void SendPacket(TServerPacket packet, params int[] connectionIds)
@@ -94,6 +121,7 @@ namespace Caseomatic.Net
 
             SendPacket(packet, currentClientConnections);
         }
+
         protected void SendPacket(TServerPacket packet, params ClientConnection[] clientConnections)
         {
             foreach (var clientConnection in clientConnections)
@@ -105,7 +133,6 @@ namespace Caseomatic.Net
 
                     if (sentBytes == 0)
                     {
-                        Console.WriteLine("Performing heartbeat: 0 bytes sent");
                         HeartbeatConnection(clientConnection);
                     }
                 }
@@ -128,13 +155,9 @@ namespace Caseomatic.Net
         protected virtual void OnClose()
         {
             isHosting = false;
-
-            acceptSocketsThread.Join();
             server.Stop();
-
-            // Copy all current connection IDs into a new array, iterate through it and disconnect all of the clients
-            var connectedConnectionIds = new int[clientConnections.Keys.Count];
-            clientConnections.Keys.CopyTo(connectedConnectionIds, 0);
+            
+            var connectedConnectionIds = clientConnections.Values.ToArray();
             foreach (var connectionId in connectedConnectionIds)
             {
                 DisconnectClient(connectionId);
@@ -154,10 +177,14 @@ namespace Caseomatic.Net
         }
         private void RegisterSocket(Socket sock)
         {
+            var connectionId = -1;
             try
             {
                 sock.ConfigureInitialSocket();
-                var connectionId = connectionIdGenerationNumber++;
+
+                connectionId = connectionIdGenerationNumber++;
+                while (clientConnections.ContainsKey(connectionId)) // Reset the connection-ID until its free
+                    connectionId = connectionIdGenerationNumber++;
 
                 var receivePacketsThread = new Thread(ReceivePacketsLoop);
                 receivePacketsThread.Name = "Client Connection " + connectionId;
@@ -170,24 +197,33 @@ namespace Caseomatic.Net
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Registering the connection attempt from client " + sock.RemoteEndPoint + " resulted in a problem: " + ex.Message);
+                Console.WriteLine("Initializing the connection attempt from client " + sock.RemoteEndPoint + " resulted in a problem: " + ex.Message);
+                KickClientConnection(connectionId);
             }
         }
 
         private void ReceivePacketsLoop(object connectionIdObj)
         {
             var connectionId = (int)connectionIdObj;
-            var clientConnection = clientConnections[connectionId];
 
-            while (isHosting && !clientConnection.terminate)
+            try
             {
-                var clientPacket = ReceivePacket(clientConnection);
-
-                var onReceiveClientPacket = OnReceiveClientPacket;
-                if (onReceiveClientPacket != null && clientPacket != null)
+                var clientConnection = clientConnections[connectionId];
+                while (isHosting && !clientConnection.terminate)
                 {
-                    onReceiveClientPacket(connectionId, clientPacket);
+                    var clientPacket = ReceivePacket(clientConnection);
+
+                    var onReceiveClientPacket = OnReceiveClientPacket;
+                    if (onReceiveClientPacket != null && clientPacket != null)
+                    {
+                        onReceiveClientPacket(connectionId, clientPacket);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in the receive loop: " + ex.Message);
+                KickClientConnection(connectionId);
             }
         }
 
@@ -196,11 +232,10 @@ namespace Caseomatic.Net
             try
             {
                 var receivedBytes = clientConnection.socket.Receive(clientConnection.packetReceivingBuffer);
-
                 if (receivedBytes == 0)
                 {
                     Console.WriteLine("Receiving from client " + clientConnection.connectionId + " resulted in a problem: 0 bytes received");
-                    KickClientConnection(clientConnection.connectionId);
+                    HeartbeatConnection(clientConnection);
 
                     return default(TClientPacket);
                 }
@@ -215,7 +250,7 @@ namespace Caseomatic.Net
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode != SocketError.TimedOut) // A socket timeout exception is normal if no packet has been received for the last "ReceiveTimeout" ms
-                {
+                { // Use when keyword for try-catch condition?
                     Console.WriteLine("Receiving for client " + clientConnection.connectionId + " resulted in a problem: "
                         + ex.SocketErrorCode + "\n" + ex.Message);
                     KickClientConnection(clientConnection.connectionId);
@@ -227,33 +262,15 @@ namespace Caseomatic.Net
 
         private void KickClientConnection(int connectionId)
         {
-            DisconnectClient(connectionId);
-            if (OnClientConnectionLost != null)
-                OnClientConnectionLost(connectionId);
-        }
-
-        private bool HeartbeatConnection(ClientConnection clientConnection) // Put async!
-        {
-            var isClientConnected = clientConnection.socket.IsConnectionValid();
-            if (!isClientConnected)
+            if (DisconnectClient(connectionId))
             {
-                Console.WriteLine("The client " + clientConnection.connectionId + " shows no heartbeat: Dropping off");
-                KickClientConnection(clientConnection.connectionId);
+                if (OnClientConnectionLost != null)
+                    OnClientConnectionLost(connectionId);
             }
-            //else
-            //{
-            //    // The client is connected, do something now?
-            //}
-
-            return isClientConnected;
         }
-        private void HeartbeatConnections()
+        private void KickClientConnection(ClientConnection clientConnection)
         {
-            var clientConnectionsCopy = new ClientConnection[clientConnections.Count];
-            clientConnections.Values.CopyTo(clientConnectionsCopy, 0);
-
-            for (int i = 0; i < clientConnectionsCopy.Length; i++)
-                HeartbeatConnection(clientConnectionsCopy[i]);
+            KickClientConnection(clientConnection.connectionId);
         }
     }
 
@@ -273,5 +290,12 @@ namespace Caseomatic.Net
             this.receivePacketsThread = receivePacketsThread;
             packetReceivingBuffer = new byte[socket.ReceiveBufferSize];
         }
+    }
+
+    public enum ErrorType
+    {
+        ZeroBytesReceived,
+        ZeroBytesSent,
+        NoHeartbeat
     }
 }

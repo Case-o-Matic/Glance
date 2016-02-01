@@ -24,10 +24,10 @@ namespace Caseomatic.Net
             sock.NoDelay = true;
 
             sock.SendBufferSize = 16384;
-            //sock.SendTimeout = 6000;
+            sock.SendTimeout = 5000;
 
             sock.ReceiveBufferSize = 16384;
-            //sock.ReceiveTimeout = 6000;
+            sock.ReceiveTimeout = 5000;
         }
     }
 }

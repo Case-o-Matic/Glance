@@ -24,7 +24,7 @@ namespace Caseomatic.Net
 
         private byte[] packetReceivingBuffer;
         private object packetReceivingLock;
-        private int port;
+        private readonly int port;
 
         private readonly ConcurrentStack<TServerPacket> receivePacketsSynchronizationStack;
 
@@ -216,14 +216,14 @@ namespace Caseomatic.Net
                     {
                         receivePacketsSynchronizationStack.Push(serverPacket);
                     }
-                    else
-                        Console.WriteLine("The received packet is corrupt.");
+                    // Else: Information about corruption already printed in ReceivePacket()
+                    //    Console.WriteLine("The received packet is corrupt.");
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Receiving in the client loop resulted in an exception: " + ex.Message);
-                
+                HeartbeatConnection(true);
             }
         }
 
