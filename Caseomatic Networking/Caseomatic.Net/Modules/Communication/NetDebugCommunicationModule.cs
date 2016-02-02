@@ -17,6 +17,16 @@ namespace Caseomatic.Net
             get { return properties; }
         }
 
+        private int receivedBytes, sentBytes;
+        public int ReceivedBytes
+        {
+            get { return receivedBytes; }
+        }
+        public int SentBytes
+        {
+            get { return sentBytes; }
+        }
+
         public NetDebugCommunicationModule(ICommunicationModule underlyingCommModule)
         {
             this.underlyingCommModule = underlyingCommModule;
@@ -26,6 +36,7 @@ namespace Caseomatic.Net
         public T ConvertReceive<T>(byte[] bytes) where T : IPacket
         {
             bytes = ApplyReceiveProperties(bytes);
+            receivedBytes += bytes.Length;
 
             var packet = underlyingCommModule.ConvertReceive<T>(bytes);
             Log("Received packet of type " + packet.GetType().FullName);
@@ -38,7 +49,15 @@ namespace Caseomatic.Net
             //packet = ApplySendProperties(packet);
 
             Log("Sending packet of type " + packet.GetType().FullName);
-            return underlyingCommModule.ConvertSend(packet);
+            var bytes = underlyingCommModule.ConvertSend(packet);
+            sentBytes += bytes.Length;
+
+            return bytes;
+        }
+
+        public void ClearInformation()
+        {
+            receivedBytes = sentBytes = 0;
         }
 
         private byte[] ApplyReceiveProperties(byte[] bytes)

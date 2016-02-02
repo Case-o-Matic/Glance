@@ -93,6 +93,31 @@ namespace Caseomatic.Net
                 OnReceivePacket(events[i]);
         }
 
+        public bool HeartbeatConnection(bool repairIfBroken)
+        {
+            if (isConnected)
+            {
+                var isReallyConnected = socket.IsConnectionValid();
+                if (!isReallyConnected)
+                {
+                    Console.WriteLine("The server shows no heartbeat" + (repairIfBroken ?
+                        ", trying to repair connection" : ", disconnecting"));
+
+                    Disconnect();
+                    if (OnConnectionLost != null)
+                        OnConnectionLost();
+
+                    if (repairIfBroken)
+                        RepairConnection();
+                }
+
+                return isReallyConnected;
+            }
+            else
+                return false;
+        }
+
+
         protected virtual void OnConnect(IPEndPoint serverEndPoint)
         {
             try
@@ -259,30 +284,6 @@ namespace Caseomatic.Net
 
                 return default(TServerPacket);
             }
-        }
-
-        private bool HeartbeatConnection(bool repairIfBroken)
-        {
-            if (isConnected)
-            {
-                var isReallyConnected = socket.IsConnectionValid();
-                if (!isReallyConnected)
-                {
-                    Console.WriteLine("The server shows no heartbeat" + (repairIfBroken ?
-                        ", trying to repair connection" : ", disconnecting"));
-
-                    Disconnect();
-                    if (OnConnectionLost != null)
-                        OnConnectionLost();
-
-                    if (repairIfBroken)
-                        RepairConnection();
-                }
-
-                return isReallyConnected;
-            }
-            else
-                return false;
         }
 
         private void RepairConnection()
