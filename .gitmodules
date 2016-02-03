@@ -1,0 +1,4 @@
+[submodule "Dependencies"]
+	path = Dependencies
+	url = C:\\Users\\steelbloom\\Desktop\\Git\\CaseoMatic-Networking
+	branch = master
